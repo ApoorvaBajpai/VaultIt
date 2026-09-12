@@ -34,6 +34,25 @@ def get_case_entities(case_id: int, db=Depends(get_db), user=Depends(get_current
         "SELECT id, name, role FROM entities WHERE case_id = %s", (case_id,)
     ).fetchall()
 
+    if not entities:
+        docs = db.execute(
+            "SELECT id, raw_text FROM documents WHERE case_id = %s AND raw_text IS NOT NULL AND raw_text != ''",
+            (case_id,)
+        ).fetchall()
+        from app.services.entities import process_entities
+        for doc in docs:
+            try:
+                doc_id = doc["id"]
+                raw_text = doc["raw_text"]
+            except (TypeError, KeyError, IndexError):
+                doc_id = doc[0]
+                raw_text = doc[1]
+            process_entities(db, doc_id, case_id, raw_text)
+
+        entities = db.execute(
+            "SELECT id, name, role FROM entities WHERE case_id = %s", (case_id,)
+        ).fetchall()
+
     result = []
     for e in entities:
         # Convert to dict in case it's a tuple from psycopg2

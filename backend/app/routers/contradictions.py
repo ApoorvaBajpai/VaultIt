@@ -9,9 +9,15 @@ router = APIRouter(tags=["contradictions"])
 def run_contradiction_check(case_id: int, db=Depends(get_db), user=Depends(get_current_user)):
     flags = detect_contradictions(db, case_id)
     for flag in flags:
+        int_doc_ids = []
+        for d in flag.get("documents", []):
+            try:
+                int_doc_ids.append(int(d))
+            except (ValueError, TypeError):
+                pass
         db.execute(
             "INSERT INTO contradiction_flags (case_id, document_ids, summary) VALUES (%s, %s, %s)",
-            (case_id, flag["documents"], flag["summary"])
+            (case_id, int_doc_ids, flag["summary"])
         )
     db.commit()
     return {"flags_found": len(flags), "flags": flags}

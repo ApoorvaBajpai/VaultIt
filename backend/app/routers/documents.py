@@ -115,7 +115,8 @@ async def upload_document(
     if raw_text:
         try:
             process_entities(db, doc_id, case_id, raw_text)
-        except Exception:
+        except Exception as e:
+            print(f"Error in process_entities: {e}")
             db.rollback()
 
     try:

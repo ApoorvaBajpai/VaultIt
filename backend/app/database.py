@@ -19,14 +19,21 @@ except Exception:
 class DBContext:
     def __init__(self, conn):
         self.conn = conn
+        self._cur = None
 
     def cursor(self, *args, **kwargs):
         return self.conn.cursor(*args, **kwargs)
 
     def execute(self, query, params=None):
-        cur = self.conn.cursor(cursor_factory=DictCursor)
-        cur.execute(query, params)
-        return cur
+        self._cur = self.conn.cursor(cursor_factory=DictCursor)
+        self._cur.execute(query, params)
+        return self._cur
+
+    def fetchone(self):
+        return self._cur.fetchone() if self._cur else None
+
+    def fetchall(self):
+        return self._cur.fetchall() if self._cur else []
 
     def commit(self):
         self.conn.commit()
