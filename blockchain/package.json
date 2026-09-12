@@ -1,0 +1,9 @@
+{
+    "name": "blockchain-anchor",
+    "version": "1.0.0",
+    "description": "Hash Anchor smart contract project",
+    "devDependencies": {
+        "hardhat": "^2.19.0",
+        "@nomicfoundation/hardhat-toolbox": "^4.0.0"
+    }
+}

@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VaultIt — API Test Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0d14; --surface: #111827; --surface2: #1a2235;
+    --border: #1f2d45; --accent: #3b82f6; --accent2: #6366f1;
+    --green: #10b981; --red: #ef4444; --yellow: #f59e0b;
+    --text: #e2e8f0; --muted: #64748b; --mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+
+  /* LAYOUT */
+  .shell { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; padding: 32px; }
+
+  /* SIDEBAR */
+  .logo { padding: 24px 20px; border-bottom: 1px solid var(--border); }
+  .logo h1 { font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .logo p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .token-pill { margin: 12px 16px; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--muted); word-break: break-all; font-family: var(--mono); }
+  .token-pill span { color: var(--green); font-weight: 600; display: block; margin-bottom: 2px; }
+  nav { flex: 1; padding: 8px; overflow-y: auto; }
+  nav a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 13px; color: var(--muted); text-decoration: none; cursor: pointer; transition: all .15s; margin-bottom: 2px; }
+  nav a:hover, nav a.active { background: var(--surface2); color: var(--text); }
+  nav a.active { border-left: 2px solid var(--accent); }
+  .nav-section { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; padding: 14px 12px 4px; }
+  .badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: auto; }
+  .badge.post { background: #065f46; color: #6ee7b7; }
+  .badge.get { background: #1e3a5f; color: #93c5fd; }
+
+  /* MAIN CONTENT */
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .page-sub { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .endpoint-badge { font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+  .endpoint-badge.post { background: #065f46; color: #6ee7b7; }
+  .endpoint-badge.get { background: #1e3a5f; color: #93c5fd; }
+
+  /* FORM CONTROLS */
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit;
+    transition: border-color .15s; outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .field input[type="file"] { cursor: pointer; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-success { background: #059669; color: #fff; }
+  .btn-success:hover { background: #047857; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* RESPONSE */
+  .response-box { margin-top: 16px; }
+  .response-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+  .status-chip { padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+  .status-chip.ok { background: #064e3b; color: #6ee7b7; }
+  .status-chip.err { background: #7f1d1d; color: #fca5a5; }
+  .status-chip.pending { background: #1c1f2e; color: var(--muted); }
+  pre { background: #050810; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--mono); font-size: 12px; color: #a5f3fc; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 320px; overflow-y: auto; }
+
+  /* VERIFY RESULT */
+  .verify-result { padding: 16px; border-radius: 10px; margin-top: 12px; }
+  .verify-result.success { background: #064e3b33; border: 1px solid #10b981; }
+  .verify-result.fail { background: #7f1d1d33; border: 1px solid var(--red); }
+  .verify-result .v-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .verify-result .v-row { display: flex; gap: 8px; font-size: 12px; margin-top: 4px; }
+  .verify-result .v-label { color: var(--muted); min-width: 130px; }
+  .verify-result .v-val { font-family: var(--mono); word-break: break-all; }
+
+  /* CASES LIST */
+  .cases-grid { display: grid; gap: 12px; }
+  .case-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; align-items: center; justify-content: space-between; transition: border-color .15s; }
+  .case-card:hover { border-color: var(--accent); }
+  .case-num { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+  .case-title { font-size: 14px; font-weight: 600; margin: 4px 0 2px; }
+  .status-badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; background: #065f46; color: #6ee7b7; font-weight: 600; }
+
+  /* DOCS LIST */
+  .doc-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
+  .doc-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .doc-info { flex: 1; }
+  .doc-title { font-size: 13px; font-weight: 600; }
+  .doc-meta { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+  .doc-type-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #1e3a8a33; color: #93c5fd; border: 1px solid #1e3a8a; font-weight: 600; }
+
+  /* SPINNER */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 14px; height: 14px; border: 2px solid transparent; border-top-color: currentColor; border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+
+  /* OVERVIEW */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .stat-val { font-size: 28px; font-weight: 700; margin-top: 6px; }
+  .stat-val.blue { color: var(--accent); }
+  .stat-val.green { color: var(--green); }
+  .stat-val.yellow { color: var(--yellow); }
+  .stat-val.purple { color: #a78bfa; }
+  .endpoint-list { display: grid; gap: 8px; }
+  .endpoint-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+  .endpoint-row .path { font-family: var(--mono); font-size: 12px; flex: 1; }
+  .endpoint-row .desc { font-size: 12px; color: var(--muted); }
+
+  /* PHASE TAG */
+  .phase-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #312e81; color: #c4b5fd; }
+
+  /* FILE DROP */
+  .drop-area { border: 2px dashed var(--border); border-radius: 10px; padding: 28px; text-align: center; cursor: pointer; transition: all .2s; background: var(--surface2); }
+  .drop-area:hover, .drop-area.drag { border-color: var(--accent); background: #1e3a5f22; }
+  .drop-area p { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .drop-area .file-name { color: var(--accent); font-family: var(--mono); font-size: 12px; margin-top: 6px; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* SEARCH RESULTS */
+  .search-result { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 10px; transition: border-color .15s; }
+  .search-result:hover { border-color: var(--accent); }
+  .search-result .sr-title { font-size: 14px; font-weight: 600; }
+  .search-result .sr-meta { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+  .similarity-bar { height: 4px; border-radius: 2px; background: var(--surface); margin-top: 8px; overflow: hidden; }
+  .similarity-bar .fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+  /* ENTITY CARDS */
+  .entity-group { margin-bottom: 20px; }
+  .entity-group-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+  .entity-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+  .entity-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .entity-avatar.witness { background: #1e3a5f; color: #93c5fd; }
+  .entity-avatar.accused { background: #7f1d1d; color: #fca5a5; }
+  .entity-avatar.victim { background: #713f12; color: #fde68a; }
+  .entity-avatar.officer { background: #065f46; color: #6ee7b7; }
+  .entity-avatar.unknown { background: var(--surface); color: var(--muted); }
+  .entity-name { font-size: 13px; font-weight: 600; }
+  .entity-docs { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .role-badge { font-size: 9px; padding: 2px 8px; border-radius: 12px; font-weight: 700; margin-left: auto; text-transform: uppercase; letter-spacing: .04em; }
+  .role-badge.witness { background: #1e3a5f55; color: #93c5fd; }
+  .role-badge.accused { background: #7f1d1d55; color: #fca5a5; }
+  .role-badge.victim { background: #713f1255; color: #fde68a; }
+  .role-badge.officer { background: #065f4655; color: #6ee7b7; }
+  .role-badge.unknown { background: var(--surface); color: var(--muted); }
+
+  /* CONTRADICTION FLAGS */
+  .flag-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 10px; }
+  .flag-card.unreviewed { border-left: 3px solid var(--yellow); }
+  .flag-card.confirmed { border-left: 3px solid var(--red); }
+  .flag-card.dismissed { border-left: 3px solid var(--muted); opacity: .6; }
+  .flag-summary { font-size: 13px; line-height: 1.5; }
+  .flag-meta { font-size: 11px; color: var(--muted); margin-top: 6px; display: flex; gap: 8px; align-items: center; }
+  .flag-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+  /* AUDIT TIMELINE */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 16px; }
+  .timeline-item::before { content: ''; position: absolute; left: -22px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+  .timeline-item .ti-action { font-size: 13px; font-weight: 600; text-transform: capitalize; }
+  .timeline-item .ti-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* DASHBOARD GRID */
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dash-grid .card { margin-bottom: 0; }
+  @media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="shell">
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo"><h1>⚖️ VaultIt</h1><p>API Test Dashboard</p></div>
+  <div class="token-pill" id="tokenDisplay"><span>TOKEN</span>Not logged in</div>
+  <nav>
+    <a onclick="showPage('overview')" class="active" id="nav-overview">🗂 Overview</a>
+    <div class="nav-section">Phase 1 — Auth & Cases</div>
+    <a onclick="showPage('login')" id="nav-login">🔐 Login <span class="badge post">POST</span></a>
+    <a onclick="showPage('create-case')" id="nav-create-case">➕ Create Case <span class="badge post">POST</span></a>
+    <a onclick="showPage('list-cases')" id="nav-list-cases">📋 List Cases <span class="badge get">GET</span></a>
+    <a onclick="showPage('get-case')" id="nav-get-case">🔍 Case Detail <span class="badge get">GET</span></a>
+    <div class="nav-section">Phase 2 — Upload & OCR</div>
+    <a onclick="showPage('upload')" id="nav-upload">📤 Upload Doc <span class="badge post">POST</span></a>
+    <div class="nav-section">Phase 3 — AI & Redaction</div>
+    <a onclick="showPage('get-doc')" id="nav-get-doc">📄 View Doc <span class="badge get">GET</span></a>
+    <div class="nav-section">Phase 4 — Blockchain</div>
+    <a onclick="showPage('anchor')" id="nav-anchor">⛓ Anchor Batch <span class="badge post">POST</span></a>
+    <a onclick="showPage('verify')" id="nav-verify">✅ Verify Doc <span class="badge get">GET</span></a>
+    <div class="nav-section">Phase 5 — Semantic Search</div>
+    <a onclick="showPage('search')" id="nav-search">🔎 Search Docs <span class="badge get">GET</span></a>
+    <div class="nav-section">Phase 6 — Entities</div>
+    <a onclick="showPage('entities')" id="nav-entities">👥 Case Entities <span class="badge get">GET</span></a>
+    <div class="nav-section">Phase 7 — Contradictions</div>
+    <a onclick="showPage('contradictions')" id="nav-contradictions">⚠️ Detect <span class="badge post">POST</span></a>
+    <div class="nav-section">Phase 8 — Dashboards</div>
+    <a onclick="showPage('dashboard')" id="nav-dashboard">📊 Case Dashboard <span class="badge get">GET</span></a>
+    <a onclick="showPage('audit')" id="nav-audit">🕓 Audit Trail <span class="badge get">GET</span></a>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- OVERVIEW -->
+<section class="page active" id="page-overview">
+  <p class="page-title">API Test Dashboard</p>
+  <p class="page-sub">Test all backend endpoints for VaultIt Phases 1–8. Login first to get a token.</p>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Phases Built</div><div class="stat-val blue">8</div></div>
+    <div class="stat-card"><div class="stat-label">Endpoints</div><div class="stat-val green">15</div></div>
+    <div class="stat-card"><div class="stat-label">Auth Status</div><div class="stat-val yellow" id="authStatus">—</div></div>
+    <div class="stat-card"><div class="stat-label">Base URL</div><div class="stat-val purple" style="font-size:13px;margin-top:10px" id="baseUrlDisplay">localhost:8000</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">⚙️ Configuration</div>
+    <div class="field"><label>Backend Base URL</label><input id="baseUrl" value="http://localhost:8000" oninput="updateBaseUrl()"/></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📡 All Endpoints</div>
+    <div class="endpoint-list">
+      <div class="endpoint-row"><span class="endpoint-badge post">POST</span><span class="path">/auth/login</span><span class="phase-tag">Phase 1</span><span class="desc">Authenticate user, get JWT</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge post">POST</span><span class="path">/cases/</span><span class="phase-tag">Phase 1</span><span class="desc">Create a new case</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge get">GET</span><span class="path">/cases/</span><span class="phase-tag">Phase 1</span><span class="desc">List all cases</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge get">GET</span><span class="path">/cases/{id}</span><span class="phase-tag">Phase 1</span><span class="desc">Get case + its documents</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge post">POST</span><span class="path">/documents/upload</span><span class="phase-tag">Phase 2</span><span class="desc">Upload → OCR → hash → classify → embed → entities</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge get">GET</span><span class="path">/documents/{id}</span><span class="phase-tag">Phase 3</span><span class="desc">View document (role-aware redaction)</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge post">POST</span><span class="path">/documents/anchor</span><span class="phase-tag">Phase 4</span><span class="desc">Batch anchor pending docs to blockchain</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge get">GET</span><span class="path">/documents/{id}/verify</span><span class="phase-tag">Phase 4</span><span class="desc">Verify hash integrity + on-chain status</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge get">GET</span><span class="path">/search/</span><span class="phase-tag">Phase 5</span><span class="desc">Semantic search via sentence-transformers + pgvector</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge get">GET</span><span class="path">/cases/{id}/entities</span><span class="phase-tag">Phase 6</span><span class="desc">Entity graph — people, roles, linked docs</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge post">POST</span><span class="path">/cases/{id}/check-contradictions</span><span class="phase-tag">Phase 7</span><span class="desc">AI-powered contradiction detection in witness statements</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge patch">PATCH</span><span class="path">/contradiction-flags/{id}</span><span class="phase-tag">Phase 7</span><span class="desc">Review / dismiss / confirm a flag</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge get">GET</span><span class="path">/cases/{id}/dashboard</span><span class="phase-tag">Phase 8</span><span class="desc">Consolidated investigation dashboard</span></div>
+      <div class="endpoint-row"><span class="endpoint-badge get">GET</span><span class="path">/documents/{id}/audit-trail</span><span class="phase-tag">Phase 8</span><span class="desc">Chain-of-custody timeline</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- LOGIN -->
+<section class="page" id="page-login">
+  <p class="page-title">🔐 Authentication</p>
+  <p class="page-sub">POST /auth/login & /auth/register — Authenticate or create an account to get a JWT token.</p>
+  
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge post">POST</span> /auth/login</div>
+    <div style="margin-bottom: 14px; font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+      <span>Quick Fill:</span>
+      <button class="btn btn-ghost" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('loginEmail').value='anushkakathil14@gmail.com';document.getElementById('loginPass').value='password123';">👤 anushkakathil14@gmail.com</button>
+      <button class="btn btn-ghost" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('loginEmail').value='officer@test.com';document.getElementById('loginPass').value='password123';">👮 officer@test.com</button>
+    </div>
+    <div class="row">
+      <div class="field"><label>Email</label><input id="loginEmail" placeholder="officer@example.com"/></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="••••••••"/></div>
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()" id="loginBtn">🔑 Login</button>
+    <div class="response-box" id="loginResponse"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge post">POST</span> /auth/register — Create / Update Account</div>
+    <div class="row">
+      <div class="field"><label>Full Name</label><input id="regName" placeholder="Anushka"/></div>
+      <div class="field"><label>Email</label><input id="regEmail" placeholder="anushkakathil14@gmail.com"/></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Password</label><input id="regPass" type="password" placeholder="Choose a password"/></div>
+      <div class="field"><label>Role</label>
+        <select id="regRole">
+          <option value="officer">officer</option>
+          <option value="prosecutor">prosecutor</option>
+          <option value="admin">admin</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-success" onclick="doRegister()" id="registerBtn">📝 Register / Update User</button>
+    <div class="response-box" id="registerResponse"></div>
+  </div>
+</section>
+
+<!-- CREATE CASE -->
+<section class="page" id="page-create-case">
+  <p class="page-title">➕ Create Case</p>
+  <p class="page-sub">POST /cases/ — Create a new case. Requires authentication.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge post">POST</span> /cases/</div>
+    <div class="row">
+      <div class="field"><label>Case Number</label><input id="caseNumber" placeholder="FIR-2024-001"/></div>
+      <div class="field"><label>Title</label><input id="caseTitle" placeholder="Case title..."/></div>
+    </div>
+    <button class="btn btn-primary" onclick="doCreateCase()" id="createCaseBtn">➕ Create Case</button>
+    <div class="response-box" id="createCaseResponse"></div>
+  </div>
+</section>
+
+<!-- LIST CASES -->
+<section class="page" id="page-list-cases">
+  <p class="page-title">📋 List Cases</p>
+  <p class="page-sub">GET /cases/ — Retrieve all cases for the authenticated user.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge get">GET</span> /cases/</div>
+    <button class="btn btn-primary" onclick="doListCases()" id="listCasesBtn">🔄 Fetch Cases</button>
+    <div class="response-box" id="listCasesResponse"></div>
+    <div id="casesGrid" class="cases-grid" style="margin-top:16px"></div>
+  </div>
+</section>
+
+<!-- CASE DETAIL -->
+<section class="page" id="page-get-case">
+  <p class="page-title">🔍 Case Detail</p>
+  <p class="page-sub">GET /cases/{id} — Get case metadata + all associated documents.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge get">GET</span> /cases/{case_id}</div>
+    <div class="field"><label>Case ID</label><input id="detailCaseId" type="number" placeholder="1"/></div>
+    <button class="btn btn-primary" onclick="doCaseDetail()" id="caseDetailBtn">🔍 Fetch</button>
+    <div class="response-box" id="caseDetailResponse"></div>
+    <div id="caseDocList" style="margin-top:16px"></div>
+  </div>
+</section>
+
+<!-- UPLOAD -->
+<section class="page" id="page-upload">
+  <p class="page-title">📤 Upload Document</p>
+  <p class="page-sub">POST /documents/upload — Uploads file, runs OCR, hashes, classifies via AI, and redacts PII.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge post">POST</span> /documents/upload</div>
+    <div class="row">
+      <div class="field"><label>Case ID</label><input id="uploadCaseId" type="number" placeholder="1"/></div>
+      <div class="field"><label>Document Title</label><input id="uploadTitle" placeholder="FIR Report - Jan 2024"/></div>
+    </div>
+    <div class="field">
+      <label>File (PNG, JPG, JPEG, TIFF, PDF)</label>
+      <div class="drop-area" id="dropArea" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+        <span style="font-size:32px">📁</span>
+        <p>Click to select or drag & drop a file</p>
+        <div class="file-name" id="selectedFileName"></div>
+      </div>
+      <input type="file" id="fileInput" style="display:none" accept=".png,.jpg,.jpeg,.tiff,.pdf" onchange="onFileChange(this)"/>
+    </div>
+    <button class="btn btn-success" onclick="doUpload()" id="uploadBtn">📤 Upload</button>
+    <div class="response-box" id="uploadResponse"></div>
+  </div>
+</section>
+
+<!-- GET DOC -->
+<section class="page" id="page-get-doc">
+  <p class="page-title">📄 View Document</p>
+  <p class="page-sub">GET /documents/{id} — Role-aware. Officers see raw text; prosecutors see redacted text.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge get">GET</span> /documents/{doc_id}</div>
+    <div class="field"><label>Document ID</label><input id="getDocId" type="number" placeholder="1"/></div>
+    <button class="btn btn-primary" onclick="doGetDoc()" id="getDocBtn">📄 Fetch Document</button>
+    <div class="response-box" id="getDocResponse"></div>
+    <div id="docViewer" style="margin-top:16px;display:none">
+      <div class="divider"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+        <span id="docTypeTag" class="doc-type-badge"></span>
+        <span id="docHashTag" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
+      </div>
+      <div class="field"><label>Extracted / Served Text</label><textarea id="docTextView" rows="8" readonly style="background:#050810;font-family:var(--mono);font-size:12px;color:#a5f3fc"></textarea></div>
+    </div>
+  </div>
+</section>
+
+<!-- ANCHOR -->
+<section class="page" id="page-anchor">
+  <p class="page-title">⛓ Anchor to Blockchain</p>
+  <p class="page-sub">POST /documents/anchor — Builds Merkle tree over all unanchored documents and submits root to Polygon Amoy.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge post">POST</span> /documents/anchor</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">This will batch all documents with <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-family:var(--mono)">merkle_root = NULL</code> and anchor them in a single blockchain transaction. No body required.</p>
+    <button class="btn btn-success" onclick="doAnchor()" id="anchorBtn">⛓ Trigger Anchoring</button>
+    <div class="response-box" id="anchorResponse"></div>
+  </div>
+</section>
+
+<!-- VERIFY -->
+<section class="page" id="page-verify">
+  <p class="page-title">✅ Verify Document</p>
+  <p class="page-sub">GET /documents/{id}/verify — Recomputes SHA-256 from disk and checks Merkle root on-chain. This is your tamper-detection demo.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge get">GET</span> /documents/{doc_id}/verify</div>
+    <div class="field"><label>Document ID</label><input id="verifyDocId" type="number" placeholder="1"/></div>
+    <button class="btn btn-primary" onclick="doVerify()" id="verifyBtn">✅ Verify</button>
+    <div id="verifyResult" style="margin-top:16px"></div>
+    <div class="response-box" id="verifyResponse"></div>
+  </div>
+</section>
+
+<!-- SEARCH -->
+<section class="page" id="page-search">
+  <p class="page-title">🔎 Semantic Search</p>
+  <p class="page-sub">GET /search/ — Search documents by meaning, not just keywords. Powered by sentence-transformers embeddings + pgvector.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge get">GET</span> /search/</div>
+    <div class="row">
+      <div class="field"><label>Search Query</label><input id="searchQuery" placeholder="red car near the market..."/></div>
+      <div class="field"><label>Case ID (optional)</label><input id="searchCaseId" type="number" placeholder="Leave blank for all cases"/></div>
+    </div>
+    <button class="btn btn-primary" onclick="doSearch()" id="searchBtn">🔎 Search</button>
+    <div id="searchResults" style="margin-top:16px"></div>
+    <div class="response-box" id="searchResponse"></div>
+  </div>
+</section>
+
+<!-- ENTITIES -->
+<section class="page" id="page-entities">
+  <p class="page-title">👥 Case Entities</p>
+  <p class="page-sub">GET /cases/{id}/entities — View all people extracted from case documents, grouped by role.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge get">GET</span> /cases/{case_id}/entities</div>
+    <div class="field"><label>Case ID</label><input id="entitiesCaseId" type="number" placeholder="1"/></div>
+    <button class="btn btn-primary" onclick="doGetEntities()" id="entitiesBtn">👥 Fetch Entities</button>
+    <div id="entitiesView" style="margin-top:16px"></div>
+    <div class="response-box" id="entitiesResponse"></div>
+  </div>
+</section>
+
+<!-- CONTRADICTIONS -->
+<section class="page" id="page-contradictions">
+  <p class="page-title">⚠️ Contradiction Detection</p>
+  <p class="page-sub">POST /cases/{id}/check-contradictions — AI compares witness statements for factual inconsistencies. Always flagged for human review.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge post">POST</span> /cases/{case_id}/check-contradictions</div>
+    <div class="field"><label>Case ID</label><input id="contradCaseId" type="number" placeholder="1"/></div>
+    <button class="btn btn-danger" onclick="doCheckContradictions()" id="contradBtn">⚠️ Run Contradiction Check</button>
+    <div id="contradFlags" style="margin-top:16px"></div>
+    <div class="response-box" id="contradResponse"></div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="page" id="page-dashboard">
+  <p class="page-title">📊 Investigation Dashboard</p>
+  <p class="page-sub">GET /cases/{id}/dashboard — Consolidated view: documents, entities, and contradiction flags in one place.</p>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title"><span class="endpoint-badge get">GET</span> /cases/{case_id}/dashboard</div>
+    <div class="field"><label>Case ID</label><input id="dashCaseId" type="number" placeholder="1"/></div>
+    <button class="btn btn-primary" onclick="doDashboard()" id="dashBtn">📊 Load Dashboard</button>
+  </div>
+  <div id="dashContent" style="display:none">
+    <div class="stats-grid" id="dashStats"></div>
+    <div class="dash-grid">
+      <div class="card"><div class="card-title">📄 Documents</div><div id="dashDocs"></div></div>
+      <div class="card"><div class="card-title">👥 Entities</div><div id="dashEntities"></div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><div class="card-title">⚠️ Open Contradiction Flags</div><div id="dashFlags"></div></div>
+  </div>
+  <div class="response-box" id="dashResponse"></div>
+</section>
+
+<!-- AUDIT TRAIL -->
+<section class="page" id="page-audit">
+  <p class="page-title">🕓 Audit Trail</p>
+  <p class="page-sub">GET /documents/{id}/audit-trail — Full chain-of-custody timeline for a document.</p>
+  <div class="card">
+    <div class="card-title"><span class="endpoint-badge get">GET</span> /documents/{doc_id}/audit-trail</div>
+    <div class="field"><label>Document ID</label><input id="auditDocId" type="number" placeholder="1"/></div>
+    <button class="btn btn-primary" onclick="doAuditTrail()" id="auditBtn">🕓 Fetch Audit Trail</button>
+    <div id="auditTimeline" style="margin-top:16px"></div>
+    <div class="response-box" id="auditResponse"></div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+let token = '';
+
+function base() { return document.getElementById('baseUrl').value.replace(/\/$/, ''); }
+function updateBaseUrl() { document.getElementById('baseUrlDisplay').textContent = base().replace('http://','').replace('https://',''); }
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.getElementById('nav-' + id)?.classList.add('active');
+}
+
+function authHeaders(isForm) {
+  const h = { 'Authorization': 'Bearer ' + token };
+  if (!isForm) h['Content-Type'] = 'application/json';
+  return h;
+}
+
+function renderResponse(elId, status, data) {
+  const el = document.getElementById(elId);
+  const ok = status >= 200 && status < 300;
+  el.innerHTML = `<div class="response-header"><span class="status-chip ${ok ? 'ok' : 'err'}">HTTP ${status}</span><span style="color:var(--muted);font-size:11px">${ok ? '✓ Success' : '✗ Error'}</span></div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+}
+
+function setLoading(btnId, loading, label) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = loading;
+  btn.innerHTML = loading ? `<span class="spinner"></span> Sending...` : label;
+}
+
+async function req(method, path, body, isForm) {
+  const opts = { method, headers: authHeaders(isForm) };
+  if (body) opts.body = isForm ? body : JSON.stringify(body);
+  const r = await fetch(base() + path, opts);
+  let data;
+  try { data = await r.json(); } catch { data = { error: 'Non-JSON response' }; }
+  return { status: r.status, data };
+}
+
+// REGISTER
+async function doRegister() {
+  setLoading('registerBtn', true, '');
+  const body = {
+    name: document.getElementById('regName').value || 'Officer',
+    email: document.getElementById('regEmail').value,
+    password: document.getElementById('regPass').value,
+    role: document.getElementById('regRole').value || 'officer',
+    department: 'Investigation'
+  };
+  try {
+    const r = await fetch(base() + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    renderResponse('registerResponse', r.status, data);
+    if (r.ok) {
+      document.getElementById('loginEmail').value = body.email;
+      document.getElementById('loginPass').value = body.password;
+    }
+  } catch(e) { renderResponse('registerResponse', 0, { error: e.message }); }
+  setLoading('registerBtn', false, '📝 Register / Update User');
+}
+
+// LOGIN
+async function doLogin() {
+  setLoading('loginBtn', true, '');
+  const fd = new FormData();
+  fd.append('username', document.getElementById('loginEmail').value);
+  fd.append('password', document.getElementById('loginPass').value);
+  try {
+    const r = await fetch(base() + '/auth/login', { method: 'POST', body: fd });
+    const data = await r.json();
+    renderResponse('loginResponse', r.status, data);
+    if (r.ok && data.access_token) {
+      token = data.access_token;
+      const short = token.substring(0, 24) + '...';
+      document.getElementById('tokenDisplay').innerHTML = `<span>TOKEN ✓</span>${short}`;
+      document.getElementById('authStatus').textContent = '✓';
+      document.getElementById('authStatus').style.color = 'var(--green)';
+    }
+  } catch(e) { renderResponse('loginResponse', 0, { error: e.message }); }
+  setLoading('loginBtn', false, '🔑 Login');
+}
+
+// CREATE CASE
+async function doCreateCase() {
+  setLoading('createCaseBtn', true, '');
+  const caseNumber = document.getElementById('caseNumber').value;
+  const title = document.getElementById('caseTitle').value;
+  try {
+    const { status, data } = await req('POST', `/cases/?case_number=${encodeURIComponent(caseNumber)}&title=${encodeURIComponent(title)}`);
+    renderResponse('createCaseResponse', status, data);
+  } catch(e) { renderResponse('createCaseResponse', 0, { error: e.message }); }
+  setLoading('createCaseBtn', false, '➕ Create Case');
+}
+
+// LIST CASES
+async function doListCases() {
+  setLoading('listCasesBtn', true, '');
+  try {
+    const { status, data } = await req('GET', '/cases/');
+    renderResponse('listCasesResponse', status, data);
+    if (Array.isArray(data)) {
+      const grid = document.getElementById('casesGrid');
+      grid.innerHTML = data.length === 0 ? '<p style="color:var(--muted);font-size:13px">No cases found.</p>' :
+        data.map(c => `<div class="case-card">
+          <div><div class="case-num">${c.case_number}</div><div class="case-title">${c.title}</div><span class="status-badge">${c.status || 'open'}</span></div>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="document.getElementById('detailCaseId').value=${c.id};showPage('get-case')">View →</button>
+        </div>`).join('');
+    }
+  } catch(e) { renderResponse('listCasesResponse', 0, { error: e.message }); }
+  setLoading('listCasesBtn', false, '🔄 Fetch Cases');
+}
+
+// CASE DETAIL
+async function doCaseDetail() {
+  setLoading('caseDetailBtn', true, '');
+  const id = document.getElementById('detailCaseId').value;
+  try {
+    const { status, data } = await req('GET', `/cases/${id}`);
+    renderResponse('caseDetailResponse', status, data);
+    if (data.documents) {
+      const el = document.getElementById('caseDocList');
+      el.innerHTML = `<p style="font-size:12px;color:var(--muted);margin-bottom:8px">DOCUMENTS (${data.documents.length})</p>` +
+        (data.documents.length === 0 ? '<p style="color:var(--muted);font-size:13px">No documents yet.</p>' :
+        data.documents.map(d => `<div class="doc-item">
+          <div class="doc-icon">📄</div>
+          <div class="doc-info"><div class="doc-title">${d.title || 'Untitled'}</div><div class="doc-meta">ID: ${d.id} | ${new Date(d.created_at).toLocaleString()}</div></div>
+          ${d.doc_type ? `<span class="doc-type-badge">${d.doc_type}</span>` : ''}
+          <button class="btn btn-ghost" style="font-size:12px" onclick="document.getElementById('getDocId').value=${d.id};showPage('get-doc')">Inspect →</button>
+        </div>`).join(''));
+    }
+  } catch(e) { renderResponse('caseDetailResponse', 0, { error: e.message }); }
+  setLoading('caseDetailBtn', false, '🔍 Fetch');
+}
+
+// FILE DROP HELPERS
+function onFileChange(input) {
+  if (input.files[0]) document.getElementById('selectedFileName').textContent = '📎 ' + input.files[0].name;
+}
+function onDragOver(e) { e.preventDefault(); document.getElementById('dropArea').classList.add('drag'); }
+function onDragLeave() { document.getElementById('dropArea').classList.remove('drag'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropArea').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) { const inp = document.getElementById('fileInput'); const dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files; document.getElementById('selectedFileName').textContent = '📎 ' + file.name; }
+}
+
+// UPLOAD
+async function doUpload() {
+  setLoading('uploadBtn', true, '');
+  const fd = new FormData();
+  fd.append('case_id', document.getElementById('uploadCaseId').value);
+  fd.append('title', document.getElementById('uploadTitle').value);
+  const fileInput = document.getElementById('fileInput');
+  if (!fileInput.files[0]) { alert('Please select a file.'); setLoading('uploadBtn', false, '📤 Upload'); return; }
+  fd.append('file', fileInput.files[0]);
+  try {
+    const r = await fetch(base() + '/documents/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    const data = await r.json();
+    renderResponse('uploadResponse', r.status, data);
+    if (r.ok && data.id) {
+      document.getElementById('getDocId').value = data.id;
+      document.getElementById('verifyDocId').value = data.id;
+    }
+  } catch(e) { renderResponse('uploadResponse', 0, { error: e.message }); }
+  setLoading('uploadBtn', false, '📤 Upload');
+}
+
+// GET DOC
+async function doGetDoc() {
+  setLoading('getDocBtn', true, '');
+  const id = document.getElementById('getDocId').value;
+  try {
+    const { status, data } = await req('GET', `/documents/${id}`);
+    renderResponse('getDocResponse', status, data);
+    if (status === 200 && data.id) {
+      document.getElementById('docViewer').style.display = 'block';
+      document.getElementById('docTypeTag').textContent = data.doc_type || 'unclassified';
+      document.getElementById('docHashTag').textContent = data.sha256_hash ? `SHA256: ${data.sha256_hash.substring(0,16)}...` : '';
+      document.getElementById('docTextView').value = data.raw_text || '(no text)';
+    }
+  } catch(e) { renderResponse('getDocResponse', 0, { error: e.message }); }
+  setLoading('getDocBtn', false, '📄 Fetch Document');
+}
+
+// ANCHOR
+async function doAnchor() {
+  setLoading('anchorBtn', true, '');
+  try {
+    const { status, data } = await req('POST', '/documents/anchor');
+    renderResponse('anchorResponse', status, data);
+  } catch(e) { renderResponse('anchorResponse', 0, { error: e.message }); }
+  setLoading('anchorBtn', false, '⛓ Trigger Anchoring');
+}
+
+// VERIFY
+async function doVerify() {
+  setLoading('verifyBtn', true, '');
+  const id = document.getElementById('verifyDocId').value;
+  document.getElementById('verifyResult').innerHTML = '';
+  try {
+    const { status, data } = await req('GET', `/documents/${id}/verify`);
+    renderResponse('verifyResponse', status, data);
+    if (status === 200) {
+      const ok = data.verified === true;
+      document.getElementById('verifyResult').innerHTML = `
+        <div class="verify-result ${ok ? 'success' : 'fail'}">
+          <div class="v-title">${ok ? '✅ Document Verified' : '❌ Verification Failed'}</div>
+          ${data.reason ? `<div class="v-row"><span class="v-label">Reason</span><span class="v-val" style="color:${ok?'var(--green)':'var(--red)'}">${data.reason}</span></div>` : ''}
+          ${data.sha256_hash ? `<div class="v-row"><span class="v-label">SHA-256 Hash</span><span class="v-val">${data.sha256_hash}</span></div>` : ''}
+          ${data.merkle_root ? `<div class="v-row"><span class="v-label">Merkle Root</span><span class="v-val">${data.merkle_root}</span></div>` : ''}
+          ${data.blockchain_tx_hash ? `<div class="v-row"><span class="v-label">Blockchain TX</span><span class="v-val"><a href="https://amoy.polygonscan.com/tx/${data.blockchain_tx_hash}" target="_blank" style="color:var(--accent)">${data.blockchain_tx_hash.substring(0,20)}...</a></span></div>` : ''}
+        </div>`;
+    }
+  } catch(e) { renderResponse('verifyResponse', 0, { error: e.message }); }
+  setLoading('verifyBtn', false, '✅ Verify');
+}
+
+// ========== PHASE 5: SEARCH ==========
+async function doSearch() {
+  setLoading('searchBtn', true, '');
+  const query = document.getElementById('searchQuery').value;
+  const caseId = document.getElementById('searchCaseId').value;
+  let path = `/search/?query=${encodeURIComponent(query)}`;
+  if (caseId) path += `&case_id=${caseId}`;
+  try {
+    const { status, data } = await req('GET', path);
+    renderResponse('searchResponse', status, data);
+    const el = document.getElementById('searchResults');
+    if (Array.isArray(data) && data.length > 0) {
+      el.innerHTML = data.map(r => {
+        const sim = (r.similarity * 100).toFixed(1);
+        return `<div class="search-result">
+          <div class="sr-title">${r.title || 'Untitled'}</div>
+          <div class="sr-meta">ID: ${r.id} | Case: ${r.case_id} | Type: ${r.doc_type || '—'} | Similarity: ${sim}%</div>
+          <div class="similarity-bar"><div class="fill" style="width:${sim}%"></div></div>
+        </div>`;
+      }).join('');
+    } else if (Array.isArray(data)) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:13px">No matching documents found.</p>';
+    } else {
+      el.innerHTML = '';
+    }
+  } catch(e) { renderResponse('searchResponse', 0, { error: e.message }); }
+  setLoading('searchBtn', false, '🔎 Search');
+}
+
+// ========== PHASE 6: ENTITIES ==========
+async function doGetEntities() {
+  setLoading('entitiesBtn', true, '');
+  const caseId = document.getElementById('entitiesCaseId').value;
+  try {
+    const { status, data } = await req('GET', `/cases/${caseId}/entities`);
+    renderResponse('entitiesResponse', status, data);
+    const el = document.getElementById('entitiesView');
+    if (Array.isArray(data) && data.length > 0) {
+      const grouped = {};
+      data.forEach(e => {
+        const role = e.role || 'unknown';
+        if (!grouped[role]) grouped[role] = [];
+        grouped[role].push(e);
+      });
+      const roleOrder = ['accused', 'victim', 'witness', 'officer', 'unknown'];
+      let html = '';
+      roleOrder.forEach(role => {
+        if (!grouped[role]) return;
+        html += `<div class="entity-group"><div class="entity-group-title">${role}s (${grouped[role].length})</div>`;
+        grouped[role].forEach(e => {
+          const initials = e.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+          const docNames = (e.linked_documents || []).map(d => d.title || `Doc #${d.id}`).join(', ');
+          html += `<div class="entity-card">
+            <div class="entity-avatar ${role}">${initials}</div>
+            <div><div class="entity-name">${e.name}</div><div class="entity-docs">In: ${docNames || 'unknown'}</div></div>
+            <span class="role-badge ${role}">${role}</span>
+          </div>`;
+        });
+        html += '</div>';
+      });
+      el.innerHTML = html;
+    } else if (Array.isArray(data)) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:13px">No entities extracted yet.</p>';
+    } else {
+      el.innerHTML = '';
+    }
+  } catch(e) { renderResponse('entitiesResponse', 0, { error: e.message }); }
+  setLoading('entitiesBtn', false, '👥 Fetch Entities');
+}
+
+// ========== PHASE 7: CONTRADICTIONS ==========
+async function doCheckContradictions() {
+  setLoading('contradBtn', true, '');
+  const caseId = document.getElementById('contradCaseId').value;
+  try {
+    const { status, data } = await req('POST', `/cases/${caseId}/check-contradictions`);
+    renderResponse('contradResponse', status, data);
+    const el = document.getElementById('contradFlags');
+    if (data.flags && data.flags.length > 0) {
+      el.innerHTML = `<p style="font-size:12px;color:var(--yellow);margin-bottom:10px">⚠️ ${data.flags_found} contradiction(s) flagged for human review</p>` +
+        data.flags.map(f => `<div class="flag-card unreviewed">
+          <div class="flag-summary">${f.summary}</div>
+          <div class="flag-meta"><span>Documents: ${(f.documents || []).join(', ')}</span></div>
+        </div>`).join('');
+    } else {
+      el.innerHTML = '<p style="color:var(--green);font-size:13px">✓ No contradictions detected among witness statements.</p>';
+    }
+  } catch(e) { renderResponse('contradResponse', 0, { error: e.message }); }
+  setLoading('contradBtn', false, '⚠️ Run Contradiction Check');
+}
+
+// ========== PHASE 8: DASHBOARD ==========
+async function doDashboard() {
+  setLoading('dashBtn', true, '');
+  const caseId = document.getElementById('dashCaseId').value;
+  try {
+    const { status, data } = await req('GET', `/cases/${caseId}/dashboard`);
+    renderResponse('dashResponse', status, data);
+    if (status === 200 && data.case) {
+      document.getElementById('dashContent').style.display = 'block';
+      // Stats
+      const c = data.case;
+      document.getElementById('dashStats').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Case #</div><div class="stat-val blue" style="font-size:16px;margin-top:8px">${c.case_number || c.id}</div></div>
+        <div class="stat-card"><div class="stat-label">Documents</div><div class="stat-val green">${(data.documents||[]).length}</div></div>
+        <div class="stat-card"><div class="stat-label">Entities</div><div class="stat-val purple">${(data.entities||[]).length}</div></div>
+        <div class="stat-card"><div class="stat-label">Open Flags</div><div class="stat-val yellow">${(data.open_contradiction_flags||[]).length}</div></div>
+      `;
+      // Docs
+      const docsEl = document.getElementById('dashDocs');
+      docsEl.innerHTML = (data.documents||[]).length === 0 ? '<p style="color:var(--muted);font-size:13px">No documents yet.</p>' :
+        (data.documents||[]).map(d => `<div class="doc-item">
+          <div class="doc-icon">${d.is_sealed ? '🔒' : '📄'}</div>
+          <div class="doc-info"><div class="doc-title">${d.title || 'Untitled'}</div><div class="doc-meta">${d.doc_type || '—'} | ${d.created_at ? new Date(d.created_at).toLocaleDateString() : ''}</div></div>
+          ${d.is_sealed ? '<span class="status-badge">Sealed</span>' : ''}
+        </div>`).join('');
+      // Entities
+      const entEl = document.getElementById('dashEntities');
+      entEl.innerHTML = (data.entities||[]).length === 0 ? '<p style="color:var(--muted);font-size:13px">No entities extracted.</p>' :
+        (data.entities||[]).map(e => {
+          const role = e.role || 'unknown';
+          const initials = e.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+          return `<div class="entity-card"><div class="entity-avatar ${role}">${initials}</div><div class="entity-name">${e.name}</div><span class="role-badge ${role}">${role}</span></div>`;
+        }).join('');
+      // Flags
+      const flagsEl = document.getElementById('dashFlags');
+      flagsEl.innerHTML = (data.open_contradiction_flags||[]).length === 0 ? '<p style="color:var(--green);font-size:13px">✓ No open flags.</p>' :
+        (data.open_contradiction_flags||[]).map(f => `<div class="flag-card unreviewed"><div class="flag-summary">${f.summary || '(no summary)'}</div></div>`).join('');
+    }
+  } catch(e) { renderResponse('dashResponse', 0, { error: e.message }); }
+  setLoading('dashBtn', false, '📊 Load Dashboard');
+}
+
+// ========== PHASE 8: AUDIT TRAIL ==========
+async function doAuditTrail() {
+  setLoading('auditBtn', true, '');
+  const docId = document.getElementById('auditDocId').value;
+  try {
+    const { status, data } = await req('GET', `/documents/${docId}/audit-trail`);
+    renderResponse('auditResponse', status, data);
+    const el = document.getElementById('auditTimeline');
+    if (Array.isArray(data) && data.length > 0) {
+      el.innerHTML = '<div class="timeline">' + data.map(l => `<div class="timeline-item">
+        <div class="ti-action">${l.action}</div>
+        <div class="ti-meta">${l.user_name} (${l.role}) — ${new Date(l.timestamp).toLocaleString()}</div>
+      </div>`).join('') + '</div>';
+    } else if (Array.isArray(data)) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:13px">No audit log entries for this document.</p>';
+    } else {
+      el.innerHTML = '';
+    }
+  } catch(e) { renderResponse('auditResponse', 0, { error: e.message }); }
+  setLoading('auditBtn', false, '🕓 Fetch Audit Trail');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+psycopg2-binary
+pytesseract
+pillow
+numpy
+pdfplumber
+anthropic
+presidio-analyzer
+presidio-anonymizer
+spacy
+web3
+sentence-transformers
+pgvector
